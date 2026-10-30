@@ -1,0 +1,115 @@
+// PRISMA CONFIGURATION
+// REQUIREMENT: Define the client generator. IMPORTANCE: Automatically generates the Prisma Client (JS/TS) used to interact with the database.
+generator client {
+  provider = "prisma-client-js"
+  engineType = "binary"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// USER MODEL
+// REQUIREMENT: Core identity entity. IMPORTANCE: Stores user credentials, profiles, and links to all user-generated content.
+model User {
+  id              String        @id @default(uuid()) // REQUIREMENT: Unique identifier. IMPORTANCE: Used as a primary key to reference a specific user across the system.
+  email           String        @unique // REQUIREMENT: Email address. IMPORTANCE: Used for login; must be unique to prevent duplicate accounts.
+  password        String // REQUIREMENT: Hashed password. IMPORTANCE: Critical for security; allows users to authenticate safely.
+  name            String // REQUIREMENT: Display name. IMPORTANCE: How the user is identified by others in the app.
+  bio             String? // REQUIREMENT: Optional biography. IMPORTANCE: Allows users to share more about themselves.
+  profileImage    String? // REQUIREMENT: Optional avatar. IMPORTANCE: Visual representation of the user.
+  createdAt       DateTime      @default(now()) // REQUIREMENT: Timestamp. IMPORTANCE: Tracks when the account was created.
+  updatedAt       DateTime      @updatedAt // REQUIREMENT: Auto-updating timestamp. IMPORTANCE: Tracks the last time the profile was modified.
+
+  // RELATIONSHIPS: Links the user to their activities
+  discussions     Discussion[] // IMPORTANCE: Connects a user to the forum posts they've created.
+  comments        Comment[] // IMPORTANCE: Connects a user to their replies on discussions.
+  messages        ChatMessage[] // IMPORTANCE: Connects a user to their real-time chat history.
+  aiChats         AiChat[] // IMPORTANCE: Links users to their private interactions with the AI assistant.
+  submissions     PracticeSubmission[] // IMPORTANCE: Tracks user answers for exercises/practice.
+  missions        MissionCompletion[] // IMPORTANCE: Tracks which missions the user has successfully finished.
+}
+
+// DISCUSSION MODEL
+// REQUIREMENT: Forum/Community entity. IMPORTANCE: Enables users to share content and start conversations.
+model Discussion {
+  id          String    @id @default(uuid())
+  title       String // REQUIREMENT: Post title. IMPORTANCE: Briefly describes the topic.
+  content     String // REQUIREMENT: Post body. IMPORTANCE: Contains the main text shared by the user.
+  category    String // REQUIREMENT: Sorting label. IMPORTANCE: Helps users find specific topics (e.g., "Tech", "Life").
+  authorId    String // REQUIREMENT: Foreign key. IMPORTANCE: Links the post back to the user who wrote it.
+  author      User      @relation(fields: [authorId], references: [id]) // REQUIREMENT: Object relationship. IMPORTANCE: Allows Prisma to easily fetch author details with the post.
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  comments    Comment[] // IMPORTANCE: Links the post to all its replies.
+  likes       Int       @default(0) // REQUIREMENT: Popularity counter. IMPORTANCE: Shows community engagement.
+}
+
+// COMMENT MODEL
+// REQUIREMENT: Reply entity. IMPORTANCE: Enables threaded conversations under discussions.
+model Comment {
+  id           String     @id @default(uuid())
+  content      String
+  authorId     String
+  author       User       @relation(fields: [authorId], references: [id])
+  discussionId String // REQUIREMENT: Foreign key. IMPORTANCE: Links the comment to a specific parent discussion.
+  discussion   Discussion @relation(fields: [discussionId], references: [id])
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+// CHAT MESSAGE MODEL
+// REQUIREMENT: Real-time messaging entity. IMPORTANCE: Stores history of community or private chat rooms.
+model ChatMessage {
+  id        String   @id @default(uuid())
+  content   String
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  room      String   @default("general") // REQUIREMENT: Scoping. IMPORTANCE: Groups messages into specific chat channels.
+  createdAt DateTime @default(now())
+}
+
+// AI CHAT MODEL
+// REQUIREMENT: Private AI interaction entity. IMPORTANCE: Persists the conversation history between a user and the AI assistant.
+model AiChat {
+  id        String   @id @default(uuid())
+  prompt    String // REQUIREMENT: User question. IMPORTANCE: Records what the user asked the AI.
+  response  String // REQUIREMENT: AI answer. IMPORTANCE: Records what the AI replied.
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+// PRACTICE SUBMISSION MODEL
+// REQUIREMENT: Educational/Task entity. IMPORTANCE: Tracks user progress on specific practice exercises.
+model PracticeSubmission {
+  id        String   @id @default(uuid())
+  title     String
+  answer    String
+  score     Int? // REQUIREMENT: Optional evaluation. IMPORTANCE: Stores feedback/points for the submission.
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+// MISSION MODEL
+// REQUIREMENT: Gamification entity. IMPORTANCE: Defines global goals or challenges available to all users.
+model Mission {
+  id          String              @id @default(uuid())
+  title       String
+  description String
+  points      Int                 @default(10) // REQUIREMENT: Reward value. IMPORTANCE: Incentivizes users to complete the mission.
+  completions MissionCompletion[] // IMPORTANCE: Links the mission to all users who have finished it.
+}
+
+// MISSION COMPLETION MODEL
+// REQUIREMENT: Relationship entity (User <-> Mission). IMPORTANCE: Tracks the specific instance of a user finishing a mission.
+model MissionCompletion {
+  id        String   @id @default(uuid())
+  missionId String
+  mission   Mission  @relation(fields: [missionId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  update    String? // REQUIREMENT: Optional progress note. IMPORTANCE: Allows users to record details about their completion.
+  createdAt DateTime @default(now())
+}
